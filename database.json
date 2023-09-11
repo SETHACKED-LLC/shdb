@@ -1,0 +1,43 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com"
+    },
+    {
+      "id": 2,
+      "name": "Jane Doe",
+      "email": "jane@example.com"
+    },
+    {
+      "name": "Jason Clay",
+      "email": "sethacked@gmail.com",
+      "id": 3
+    },
+    {
+      "name": "Jason Clay",
+      "email": "sethacked@gmail.com",
+      "id": 4
+    },
+    {
+      "name": "Jason Clay",
+      "email": "sethacked@gmail.com",
+      "id": 5
+    }
+  ],
+  "posts": [
+    {
+      "id": 1,
+      "userId": 1,
+      "title": "First blog post",
+      "body": "This is the first blog post!"
+    },
+    {
+      "id": 2,
+      "userId": 2,
+      "title": "Second blog post",
+      "body": "This is the second blog post!"
+    }
+  ]
+}

@@ -1,2 +1,2 @@
 # shdb
- a database app
+A Module to handle hosting a simple web app *In development*

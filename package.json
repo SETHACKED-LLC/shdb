@@ -1,0 +1,31 @@
+{
+  "name": "shdb",
+  "version": "0.0.1",
+  "description": "shdb dev",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SETHACKED-LLC/shdb.git"
+  },
+  "keywords": [
+    "sethacked",
+    "shdb",
+    "json",
+    "database"
+  ],
+  "author": "Jason Clay",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/SETHACKED-LLC/shdb/issues"
+  },
+  "homepage": "https://github.com/SETHACKED-LLC/shdb#readme",
+  "dependencies": {
+    "mime-type": "^4.0.0"
+  }
+}
