@@ -28,6 +28,33 @@ class SHDB {
         this.options.cert = this.options.cert || './localhost-cert.pem';
         this.files = {};
 
+        this.jsonDatabase = require(this.options.jsonDBPath);
+        // jsonDatabase example
+        /*
+            {
+                "table1": [{
+                    "id": 1,
+                    "key1": "value1",
+                    "key2": "value2"
+                },
+                {
+                    "id": 2,
+                    "key1": "value3",
+                    "key2": "value4"
+                }],
+                "table2": [{
+                    "id": 1,
+                    "key1": "value1",
+                    "key2": "value2"
+                },
+                {
+                    "id": 2,
+                    "key1": "value3",
+                    "key2": "value4"
+                }]
+            }
+        */
+
         /** @type {http2.Server}*/
         this.server = http2.createSecureServer({
             key: fsp.readFileSync(this.options.key),
@@ -40,9 +67,41 @@ class SHDB {
             }
             console.log(`pathname: ${pathname}`);
             console.log(`requestURL: ${requestURL}`);
-            
+            if (this.files[`${this.options.publicFilesPath}${pathname}`] !== undefined) { // if the file exists in public files, send it over
+                res.setHeader('Content-Type', this.files[`${this.options.publicFilesPath}${pathname}`].mime);
+                res.end(this.files[`${this.options.publicFilesPath}${pathname}`].data);
+            } else {
+                if(pathname.indexOf('/shdb/json/') !== 0){
+                    // JSON CRUD API for the database
+                    switch (req.method) {
+                        case 'GET':
+                            // allow for deep access to the database
+                            // /shdb/json/table1/1
+                            // /shdb/json/table?key1
+                            break;
+                        case 'POST':
+                            break;
+                        case 'PUT':
+                            break;
+                        case 'DELETE':
+                            break;
+                        default:
+                            res.writeHead(405);
+                            res.end();
+                    }
+                } else {
+                    this.customAPI(req, res);
+                }
+            }
         });
     }
+    //** @type {function} */
+    customAPI(req, res) {
+        // default to 404
+        res.writeHead(404);
+        res.end();
+    }
+
 
     /** @type {function} */
     async walkDirectory(directoryPath) {
