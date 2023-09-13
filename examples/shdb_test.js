@@ -1,14 +1,12 @@
-const SHDB = require('../index.js')
+const SHDB = require('../index.js');
 
-const server = new SHDB({
-    publicFIlesPath: './public',
-    jsonDBPath: './db.json',
-    key: '.localhost-privkey.pem',
-    cert: '.localhost-cert.pem'
-})
+const shdb = new SHDB({
+    publicFilesPath: 'C:/Users/jason/Code/github/shdb/examples/public',
+    jsonDBPath: 'C:/Users/jason/Code/github/shdb/examples/db.json',
+    key: 'C:/Users/jason/Code/github/shdb/examples/localhost-privkey.pem',
+    cert: 'C:/Users/jason/Code/github/shdb/examples/localhost-cert.pem',
+    host: 'localhost',
+    port: 8443
+});
 
-server.customAPI = (req, res) => {
-    // test custom api
-    res.writeHead(200, { 'Content-Type': 'text/html' })
-    res.end('<h1>Custom API</h1>')
-}
+shdb.start();
