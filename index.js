@@ -1,27 +1,14 @@
-/**
- * @fileOverview Module to handle hosting a simple web app.
- * @author Jason Clay <sethacked@gmail.com> (https://sethacked.com)
- */
-
 'use strict';
 
 const http2 = require("http2");
 const url = require("url");
-const fs = require("fs")
+const fs = require("fs");
 const fsp = fs.promises;
 const mime = require("mime-types");
 
-/** Class representing a simple web app. */
 class SHDB {
-    /**
-     * Builds the web app. 
-     * @param {object} options - Options object.
-     * @param {string} options.publicFilesPath - Path to the public files.
-     * @param {string} options.jsonDBPath - Path to the JSON file.
-     * @param {string} options.key - Path to the private key file.
-     * @param {string} options.cert - Path to the certificate file.
-     */
     constructor(options) {
+
         this.options = options;
         this.options.publicFilesPath = this.options.publicFilesPath || './public/';
         this.options.jsonDBPath = this.options.jsonDBPath || './db.json';
@@ -31,7 +18,7 @@ class SHDB {
         this.options.port = this.options.port || 8443;
         this.files = {};
         this.jsonDatabase = require(this.options.jsonDBPath);
-        /** @type {http2.Server}*/
+
         this.server = http2.createSecureServer({
             key: fs.readFileSync(this.options.key),
             cert: fs.readFileSync(this.options.cert),
@@ -50,207 +37,85 @@ class SHDB {
                 if (pathname.indexOf('/shdb/json/') === 0) {
                     // CRUD API for the JSON database
                     switch (req.method) {
-                        /**
-                         * GET /shdb/json/:users
-                         * GET /shdb/json/:users/:id
-                         * Filter examples
-                         * GET /shdb/json/:users?username=anticlergy
-                         * GET /shdb/json/:users?username=anticlergy&admin=true
-                         * GET /shdb/json/:users?id=1&id=2
-                         * GET /shdb/json/:users?username=anticlergy&admin=true&status.online=true
-                         * GET /shdb/json/:users?_sort=id&_order=desc
-                         */
                         case 'GET':
                             {
-                                let pathParts = pathname.split('/');
-                                let collection = pathParts[3];
-                                let id = pathParts[4];
+                                /**
+                                 * GET /shdb/json/:collection => returns all items in the collection
+                                 * GET /shdb/json/:collection/:id => returns the item with the id
+                                 * Filter examples
+                                 * GET /shdb/json/:collection?username=anticlergy => returns all items with username=anticlergy
+                                 * GET /shdb/json/:collection?username=anticlergy&admin=true => returns all items with username=anticlergy and admin=true
+                                 * GET /shdb/json/:collection?id=1&id=2 => returns all items with id=1 or id=2
+                                 * GET /shdb/json/:collection?username=anticlergy&status.online=true => returns all items with username=anticlergy and admin=true and status.online=true
+                                 * GET /shdb/json/:collection?_sort=id&_order=desc => returns all items sorted by id descending
+                                 */
+                                let collection = pathname.split('/')[3];
+                                let id = pathname.split('/')[4];
                                 let query = requestURL.searchParams;
-                                let sort = query.get('_sort');
-                                let order = query.get('_order');
-                                let filter = {};
-                                for (let [key, value] of query) {
-                                    if (key !== '_sort' && key !== '_order') {
-                                        filter[key] = value;
-                                    }
-                                }
-                                if (id === undefined) {
-                                    let results = this.jsonDatabase[collection];
-                                    if (filter !== undefined) {
-                                        results = results.filter((item) => {
-                                            let match = true;
-                                            for (let key in filter) {
-                                                if (item[key] !== filter[key]) {
-                                                    match = false;
-                                                }
-                                            }
-                                            return match;
-                                        });
-                                    }
-                                    if (sort !== undefined) {
-                                        results.sort((a, b) => {
-                                            if (order === 'desc') {
-                                                return b[sort] - a[sort];
-                                            } else {
-                                                return a[sort] - b[sort];
-                                            }
-                                        });
-                                    }
-                                    res.setHeader('Content-Type', 'application/json');
-                                    res.writeHead(200);
-                                    res.end(JSON.stringify(results));
-                                } else {
-                                    let results = this.jsonDatabase[collection].filter((item) => {
-                                        return item.id === parseInt(id);
-                                    });
-                                    if (results.length > 0) {
+                                let filteredItems = [];
+                                if (id) {
+                                    let item = this.jsonDatabase[collection].find(item => item.id === id);
+                                    if (item) {
                                         res.setHeader('Content-Type', 'application/json');
-                                        res.writeHead(200);
-                                        res.end(JSON.stringify(results[0]));
+                                        res.end(JSON.stringify(item));
                                     } else {
                                         res.writeHead(404);
                                         res.end();
                                     }
+                                } else {
+                                    if (query.toString().length > 0) {
+                                        let queryKeys = Object.keys(query);
+                                        let queryValues = Object.values(query);
+                                        let queryItems = [];
+                                        for (let i = 0; i < queryKeys.length; i++) {
+                                            let key = queryKeys[i];
+                                            let value = queryValues[i];
+                                            if (key === '_sort') {
+                                                queryItems.sort((a, b) => {
+                                                    if (a[value] < b[value]) {
+                                                        return -1;
+                                                    }
+                                                    if (a[value] > b[value]) {
+                                                        return 1;
+                                                    }
+                                                    return 0;
+                                                });
+                                            } else if (key === '_order') {
+                                                if (value === 'desc') {
+                                                    queryItems.reverse();
+                                                }
+                                            } else {
+                                                queryItems = queryItems.concat(this.jsonDatabase[collection].filter(item => item[key] === value));
+                                            }
+                                        }
+                                        filteredItems = queryItems;
+                                    } else {
+                                        filteredItems = this.jsonDatabase[collection];
+                                    }
+                                    res.setHeader('Content-Type', 'application/json');
+                                    res.end(JSON.stringify(filteredItems));
                                 }
                             }
                             break;
-                        /** 
-                         * POST /shdb/json/:users
-                         */
                         case 'POST':
                             {
-                                let pathParts = pathname.split('/');
-                                let collection = pathParts[3];
-                                //check if the collection exists
-                                if (this.jsonDatabase[collection] !== undefined) {
-                                    //parse the json from the body and check if it has an id
-                                    let body = '';
-                                    req.on('data', (chunk) => {
-                                        body += chunk.toString();
-                                    });
-                                    req.on('end', () => {
-                                        let newObject = JSON.parse(body);
-                                        if (newObject.id !== undefined) {
-                                            //check if the id already exists
-                                            let results = this.jsonDatabase[collection].filter((item) => {
-                                                return item.id === parseInt(newObject.id);
-                                            });
-                                            if (results.length > 0) {
-                                                res.writeHead(409);
-                                                res.end();
-                                            } else {
-                                                this.jsonDatabase[collection].push(newObject);
-                                                fsp.writeFile(this.options.jsonDBPath, JSON.stringify(this.jsonDatabase)).then(() => {
-                                                    res.writeHead(201);
-                                                    res.end();
-                                                }).catch((err) => {
-                                                    console.log(err);
-                                                    res.writeHead(500);
-                                                    res.end();
-                                                });
-                                            }
-                                        } else {
-                                            res.writeHead(400);
-                                            res.end();
-                                        }
-                                    });
-                                }
+                                /** 
+                                 * POST /shdb/json/:users
+                                 */                                
                             }
                             break;
-                        /**
-                         * PUT /shdb/json/:users/:id
-                         */ 
                         case 'PUT':
                             {
-                                let pathParts = pathname.split('/');
-                                let collection = pathParts[3];
-                                let id = pathParts[4];
-                                //check if the collection exists
-                                if (this.jsonDatabase[collection] !== undefined) {
-                                    //parse the json from the body and check if it has an id
-                                    let body = '';
-                                    req.on('data', (chunk) => {
-                                        body += chunk.toString();
-                                    });
-                                    req.on('end', () => {
-                                        let newObject = JSON.parse(body);
-                                        if (newObject.id !== undefined) {
-                                            //check if the id already exists
-                                            let results = this.jsonDatabase[collection].filter((item) => {
-                                                return item.id === parseInt(newObject.id);
-                                            });
-                                            if (results.length > 0) {
-                                                this.jsonDatabase[collection].forEach((item, index) => {
-                                                    if (item.id === parseInt(newObject.id)) {
-                                                        this.jsonDatabase[collection][index] = newObject;
-                                                    }
-                                                });
-                                                fsp.writeFile(this.options.jsonDBPath, JSON.stringify(this.jsonDatabase)).then(() => {
-                                                    res.writeHead(200);
-                                                    res.end();
-                                                }).catch((err) => {
-                                                    console.log(err);
-                                                    res.writeHead(500);
-                                                    res.end();
-                                                });
-                                            } else {
-                                                res.writeHead(404);
-                                                res.end();
-                                            }
-                                        } else {
-                                            res.writeHead(400);
-                                            res.end();
-                                        }
-                                    });
-                                }
+                                /**
+                                 * PUT /shdb/json/:users/:id
+                                 */
                             }
                             break;
-                        /**
-                         * DELETE /shdb/json/:users/:id
-                         */
                         case 'DELETE':
                             {
-                                let pathParts = pathname.split('/');
-                                let collection = pathParts[3];
-                                let id = pathParts[4];
-                                //check if the collection exists
-                                if (this.jsonDatabase[collection] !== undefined) {
-                                    //parse the json from the body and check if it has an id
-                                    let body = '';
-                                    req.on('data', (chunk) => {
-                                        body += chunk.toString();
-                                    });
-                                    req.on('end', () => {
-                                        let newObject = JSON.parse(body);
-                                        if (newObject.id !== undefined) {
-                                            //check if the id already exists
-                                            let results = this.jsonDatabase[collection].filter((item) => {
-                                                return item.id === parseInt(newObject.id);
-                                            });
-                                            if (results.length > 0) {
-                                                this.jsonDatabase[collection].forEach((item, index) => {
-                                                    if (item.id === parseInt(newObject.id)) {
-                                                        this.jsonDatabase[collection].splice(index, 1);
-                                                    }
-                                                });
-                                                fsp.writeFile(this.options.jsonDBPath, JSON.stringify(this.jsonDatabase)).then(() => {
-                                                    res.writeHead(200);
-                                                    res.end();
-                                                }).catch((err) => {
-                                                    console.log(err);
-                                                    res.writeHead(500);
-                                                    res.end();
-                                                });
-                                            } else {
-                                                res.writeHead(404);
-                                                res.end();
-                                            }
-                                        } else {
-                                            res.writeHead(400);
-                                            res.end();
-                                        }
-                                    });
-                                }
+                                /**
+                                 * DELETE /shdb/json/:users/:id
+                                 */                            
                             }
                             break;
                         default:
@@ -266,7 +131,6 @@ class SHDB {
         });
     }
 
-    /** @type {function} */
     start() {
         this.server.listen(this.options.port, this.options.host, () => {
             console.log(`Server running at https://${this.options.host}:${this.options.port}/`);
@@ -274,14 +138,12 @@ class SHDB {
         this.readPublicFiles();
     }
 
-    /** @type {function} */
     customAPI(req, res) {
         // default to 404 for now
         res.writeHead(404);
         res.end();
     }
 
-    /** @type {function} */
     async walkDirectory(directoryPath) {
         let paths = await fsp.readdir(directoryPath);
         for (let i = 0; i < paths.length; i++) {
@@ -315,7 +177,6 @@ class SHDB {
         }
     }
 
-    /** @type {function} */
     async readPublicFiles() {
         await this.walkDirectory(this.options.publicFilesPath + '/');
         return;

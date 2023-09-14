@@ -27,6 +27,5 @@
   "homepage": "https://github.com/SETHACKED-LLC/shdb#readme",
   "dependencies": {
     "mime-types": "^2.1.35"
-  },
-  "devDependencies": {}
+  }
 }
