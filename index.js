@@ -1,7 +1,6 @@
 'use strict';
 
 const http2 = require("http2");
-const url = require("url");
 const fs = require("fs");
 const fsp = fs.promises;
 const mime = require("mime-types");
@@ -27,95 +26,52 @@ class SHDB {
                 req.url = '/index.html';
             }
             let requestURL = new URL(req.url, `https://${this.options.host}:${this.options.port}`);
-            // console.log(`requestURL: ${requestURL}`);
-            let pathname = requestURL.pathname;
-            // console.log(`${this.options.publicFilesPath}${pathname}`)
-            if (this.files[`${this.options.publicFilesPath}${pathname}`] !== undefined) { // if the file exists in public files, send it over
-                res.setHeader('Content-Type', this.files[`${this.options.publicFilesPath}${pathname}`].mime);
-                res.end(this.files[`${this.options.publicFilesPath}${pathname}`].data);
+             if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) { // if the file exists in public files, send it over
+                res.writeHead(200, { 'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime });
+                res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
             } else {
-                if (pathname.indexOf('/shdb/json/') === 0) {
+                if (requestURL.pathname.indexOf('/shdb/json/') === 0) {
+                    let collection = requestURL.pathname.split('/')[3] || null;
+                    let id = requestURL.pathname.split('/')[4] || null;
+                    let params = requestURL.searchParams | null;
                     // CRUD API for the JSON database
                     switch (req.method) {
                         case 'GET':
                             {
-                                /**
-                                 * GET /shdb/json/:collection => returns all items in the collection
-                                 * GET /shdb/json/:collection/:id => returns the item with the id
-                                 * Filter examples
-                                 * GET /shdb/json/:collection?username=anticlergy => returns all items with username=anticlergy
-                                 * GET /shdb/json/:collection?username=anticlergy&admin=true => returns all items with username=anticlergy and admin=true
-                                 * GET /shdb/json/:collection?id=1&id=2 => returns all items with id=1 or id=2
-                                 * GET /shdb/json/:collection?username=anticlergy&status.online=true => returns all items with username=anticlergy and admin=true and status.online=true
-                                 * GET /shdb/json/:collection?_sort=id&_order=desc => returns all items sorted by id descending
-                                 */
-                                let collection = pathname.split('/')[3];
-                                let id = pathname.split('/')[4];
-                                let query = requestURL.searchParams;
-                                let filteredItems = [];
-                                if (id) {
-                                    let item = this.jsonDatabase[collection].find(item => item.id === id);
-                                    if (item) {
-                                        res.setHeader('Content-Type', 'application/json');
-                                        res.end(JSON.stringify(item));
-                                    } else {
-                                        res.writeHead(404);
-                                        res.end();
-                                    }
-                                } else {
-                                    if (query.toString().length > 0) {
-                                        let queryKeys = Object.keys(query);
-                                        let queryValues = Object.values(query);
-                                        let queryItems = [];
-                                        for (let i = 0; i < queryKeys.length; i++) {
-                                            let key = queryKeys[i];
-                                            let value = queryValues[i];
-                                            if (key === '_sort') {
-                                                queryItems.sort((a, b) => {
-                                                    if (a[value] < b[value]) {
-                                                        return -1;
-                                                    }
-                                                    if (a[value] > b[value]) {
-                                                        return 1;
-                                                    }
-                                                    return 0;
-                                                });
-                                            } else if (key === '_order') {
-                                                if (value === 'desc') {
-                                                    queryItems.reverse();
-                                                }
-                                            } else {
-                                                queryItems = queryItems.concat(this.jsonDatabase[collection].filter(item => item[key] === value));
-                                            }
+                                if (collection !== null) {
+                                    let records = this.jsonDatabase[collection];
+                                    if (id !== null) {
+                                        records = records.filter((record) => {
+                                            return record.id === id;
+                                        });
+                                    } else if (params !== null) {
+                                        for (let [key, value] of params) {
+                                            keys = key.split('.');
+                                            
+
                                         }
-                                        filteredItems = queryItems;
-                                    } else {
-                                        filteredItems = this.jsonDatabase[collection];
                                     }
-                                    res.setHeader('Content-Type', 'application/json');
-                                    res.end(JSON.stringify(filteredItems));
+                                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                                    res.end(JSON.stringify(records));
+                                } else {
+                                    res.writeHead(404);
+                                    res.end();
                                 }
                             }
                             break;
                         case 'POST':
                             {
-                                /** 
-                                 * POST /shdb/json/:users
-                                 */                                
+
                             }
                             break;
                         case 'PUT':
                             {
-                                /**
-                                 * PUT /shdb/json/:users/:id
-                                 */
+
                             }
                             break;
                         case 'DELETE':
                             {
-                                /**
-                                 * DELETE /shdb/json/:users/:id
-                                 */                            
+
                             }
                             break;
                         default:
@@ -152,8 +108,8 @@ class SHDB {
             if (stat.isDirectory()) {
                 await this.walkDirectory(directoryPath + path + '/');
             } else {
-                if (this.files[`${directoryPath}${path}`]) {
-                    if (this.files[`${directoryPath}${path}`].mtimeMs !== stat.mtimeMs) {
+                if(this.files[`${directoryPath}${path}`]) {
+                    if(this.files[`${directoryPath}${path}`].mtimeMs !== stat.mtimeMs) {
                         this.files[`${directoryPath}${path}`] = {
                             path: `${directoryPath}${path}`,
                             name: path,
@@ -180,6 +136,29 @@ class SHDB {
     async readPublicFiles() {
         await this.walkDirectory(this.options.publicFilesPath + '/');
         return;
+    }
+
+    filterCollection = (collection, searchParams) => {
+        let records = db[collection]
+        let filteredRecords = []
+        for (let record of records) {
+            let match = true
+            for (let [key, value] of searchParams) {
+                let keys = key.split('.')
+                let recordValue = record
+                for (let key of keys) {
+                    recordValue = recordValue[key]
+                }
+                if (recordValue !== value) {
+                    match = false
+                    break
+                }
+            }
+            if (match) {
+                filteredRecords.push(record)
+            }
+        }
+        return filteredRecords
     }
 }
 
