@@ -26,52 +26,124 @@ class SHDB {
                 req.url = '/index.html';
             }
             let requestURL = new URL(req.url, `https://${this.options.host}:${this.options.port}`);
-             if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) { // if the file exists in public files, send it over
+            if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) { // if the file exists in public files, send it over
                 res.writeHead(200, { 'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime });
                 res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
             } else {
                 if (requestURL.pathname.indexOf('/shdb/json/') === 0) {
                     let collection = requestURL.pathname.split('/')[3] || null;
                     let id = requestURL.pathname.split('/')[4] || null;
-                    let params = requestURL.searchParams | null;
+                    // if requestURL.searchParams is empty, params is null
+                    // if requestURL.searchParams is not empty, params is requestURL.searchParams
+                    let params = requestURL.searchParams.toString() === '' ? null : requestURL.searchParams;
                     // CRUD API for the JSON database
                     switch (req.method) {
                         case 'GET':
                             {
-                                if (collection !== null) {
-                                    let records = this.jsonDatabase[collection];
-                                    if (id !== null) {
-                                        records = records.filter((record) => {
-                                            return record.id === id;
-                                        });
-                                    } else if (params !== null) {
-                                        for (let [key, value] of params) {
-                                            keys = key.split('.');
-                                            
-
-                                        }
-                                    }
+                                // if collection is null, return all collections
+                                // if id is null, return all records in collection
+                                // if params is null, return all records in collection
+                                // if params is not null, return filtered records in collection
+                                if (collection === null) {
                                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                                    res.end(JSON.stringify(records));
+                                    res.end(JSON.stringify(this.jsonDatabase));
                                 } else {
-                                    res.writeHead(404);
-                                    res.end();
+                                    if (id === null) {
+                                        if (params === null) {
+                                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                                            res.end(JSON.stringify(this.jsonDatabase[collection]));
+                                        } else {
+                                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                                            res.end(JSON.stringify(this.filterCollection(collection, params)));
+                                        }
+                                    } else {
+                                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                                        res.end(JSON.stringify(this.jsonDatabase[collection][id]));
+                                    }
                                 }
                             }
                             break;
                         case 'POST':
                             {
-
+                                // if collection is null, return 405
+                                // if collection is not null, and there is no body, create a new collection
+                                // if collection is not null, and there is a body, create a new record in collection
+                                if (collection === null) {
+                                    res.writeHead(405);
+                                    res.end();
+                                } else {
+                                    // build the body
+                                    let body = '';
+                                    req.on('data', chunk => {
+                                        body += chunk.toString();
+                                    });
+                                    req.on('end', () => {
+                                        if (body === '') {
+                                            // create new collection
+                                            this.jsonDatabase[collection] = [];
+                                            res.writeHead(201);
+                                            res.end();
+                                        } else {
+                                            // create new record in collection
+                                            let record = JSON.parse(body);
+                                            this.jsonDatabase[collection].push(record);
+                                            res.writeHead(201);
+                                            res.end();
+                                        }
+                                    });
+                                }
                             }
                             break;
                         case 'PUT':
                             {
-
+                                // if collection is null, return 405
+                                // if collection is not null, and there is no body, return 405
+                                // if collection is not null, and there is a body, update the collection
+                                if (collection === null) {
+                                    res.writeHead(405);
+                                    res.end();
+                                } else {
+                                    // build the body
+                                    let body = '';
+                                    req.on('data', chunk => {
+                                        body += chunk.toString();
+                                    });
+                                    req.on('end', () => {
+                                        if (body === '') {
+                                            res.writeHead(405);
+                                            res.end();
+                                        } else {
+                                            // update the collection
+                                            let record = JSON.parse(body);
+                                            this.jsonDatabase[collection] = record;
+                                            res.writeHead(200);
+                                            res.end();
+                                        }
+                                    });
+                                }
                             }
                             break;
                         case 'DELETE':
                             {
-
+                                // if collection is null, return 405
+                                // if collection is not null, and id is null, delete the collection
+                                // if collection is not null, and id is not null, delete the record in collection
+                                if (collection === null) {
+                                    res.writeHead(405);
+                                    res.end();
+                                } else {
+                                    if (id === null) {
+                                        // delete the collection
+                                        delete this.jsonDatabase[collection];
+                                        res.writeHead(200);
+                                        res.end();
+                                    } else {
+                                        // delete the record in collection
+                                        this.jsonDatabase[collection].splice(id, 1);
+                                        res.writeHead(200);
+                                        res.end();
+                                    }
+                                }
                             }
                             break;
                         default:
@@ -108,8 +180,8 @@ class SHDB {
             if (stat.isDirectory()) {
                 await this.walkDirectory(directoryPath + path + '/');
             } else {
-                if(this.files[`${directoryPath}${path}`]) {
-                    if(this.files[`${directoryPath}${path}`].mtimeMs !== stat.mtimeMs) {
+                if (this.files[`${directoryPath}${path}`]) {
+                    if (this.files[`${directoryPath}${path}`].mtimeMs !== stat.mtimeMs) {
                         this.files[`${directoryPath}${path}`] = {
                             path: `${directoryPath}${path}`,
                             name: path,
@@ -139,7 +211,7 @@ class SHDB {
     }
 
     filterCollection = (collection, searchParams) => {
-        let records = db[collection]
+        let records = this.jsonDatabase[collection]
         let filteredRecords = []
         for (let record of records) {
             let match = true

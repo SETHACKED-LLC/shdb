@@ -35,25 +35,28 @@ const getJsonBody = async (req) => {
 }
 
 // http2 client with rejectUnauthorized false to test the json api
-// const client = http2.connect('https://localhost:8443', { rejectUnauthorized: false });
+const client = http2.connect('https://localhost:8443', { rejectUnauthorized: false });
 
 // GET /shdb/json/:users
-// const getUsers = client.request({ ':path': '/shdb/json/users' });
-// getJsonBody(getUsers).then((body) => {
-//     console.log("GET /shdb/json/users")
-//     console.log(body);
-// });
-
-// GET /shdb/json/:users/:id
-// const getUser = client.request({ ':path': '/shdb/json/users/1' });
-// getJsonBody(getUser).then((body) => {
-//     console.log("GET /shdb/json/users/1")
-//     console.log(body);
-// });
-
-// GET /shdb/json/:users?admin=true&online=true
-// const getUsersAdminOnline = client.request({ ':path': '/shdb/json/users?admin=true&online=true' });
-// getJsonBody(getUsersAdminOnline).then((body) => {
-//     console.log("GET /shdb/json/users?admin=true&online=true")
-//     console.log(body);
-// });
+const getUsers = client.request({ ':path': '/shdb/json/users' });
+getJsonBody(getUsers).then(body => {
+    console.log("GET /shdb/json/users")
+    console.log(body);
+    const getUser = client.request({ ':path': '/shdb/json/users/1' });
+    return getJsonBody(getUser)
+}).then(body => {
+    console.log("GET /shdb/json/users/1")
+    console.log(body);
+    // GET /shdb/json/:users?username=anticlergy
+    const getUser = client.request({ ':path': '/shdb/json/users?username=anticlergy' });
+    return getJsonBody(getUser)
+}).then(body => {
+    console.log("GET /shdb/json/users?username=anticlergy")
+    console.log(body);
+    // GET /shdb/json/:users?admin=true&status.online=true
+    const getUser = client.request({ ':path': '/shdb/json/users?status.online=true' });
+    return getJsonBody(getUser)
+}).then(body => {
+    console.log("GET /shdb/json/users?status.online=true")
+    console.log(body);
+});
