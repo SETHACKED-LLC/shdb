@@ -64,13 +64,13 @@ class SHDB {
                             }
                             break;
                         case 'POST':
-                            {}
+                            { }
                             break;
                         case 'PUT':
-                            {}
+                            { }
                             break;
                         case 'DELETE':
-                            {}
+                            { }
                             break;
                         default:
                             {
@@ -139,27 +139,28 @@ class SHDB {
     addRecord = (collection, record) => {
         // if collection does not exist, create it
 
-    filterCollection = (collection, searchParams) => {
-        let records = this.jsonDatabase[collection]
-        let filteredRecords = []
-        for (let record of records) {
-            let match = true
-            for (let [key, value] of searchParams) {
-                let keys = key.split('.')
-                let recordValue = record
-                for (let key of keys) {
-                    recordValue = recordValue[key]
+        filterCollection = (collection, searchParams) => {
+            let records = this.jsonDatabase[collection]
+            let filteredRecords = []
+            for (let record of records) {
+                let match = true
+                for (let [key, value] of searchParams) {
+                    let keys = key.split('.')
+                    let recordValue = record
+                    for (let key of keys) {
+                        recordValue = recordValue[key]
+                    }
+                    if (recordValue !== value) {
+                        match = false
+                        break
+                    }
                 }
-                if (recordValue !== value) {
-                    match = false
-                    break
+                if (match) {
+                    filteredRecords.push(record)
                 }
             }
-            if (match) {
-                filteredRecords.push(record)
-            }
+            return filteredRecords
         }
-        return filteredRecords
     }
 }
 
