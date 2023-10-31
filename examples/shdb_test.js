@@ -1,7 +1,6 @@
 const SHDB = require('../index.js');
 const http2 = require('http2');
 const fs = require('fs');
-
 const shdb = new SHDB({
     publicFilesPath: 'C:/Users/jason/Code/github/shdb/examples/public',
     jsonDBPath: 'C:/Users/jason/Code/github/shdb/examples/db.json',
@@ -10,24 +9,34 @@ const shdb = new SHDB({
     host: 'localhost',
     port: 8443
 });
-
 shdb.start();
-
-// http2 client with rejectUnauthorized false to test the json api
-const client = http2.connect('https://localhost:8443', {
-    ca: fs.readFileSync('C:/Users/jason/Code/github/shdb/examples/localhost-cert.pem')
-});
-
-let usersRequest = client.request({ ':path': '/shdb/json/users' })
-usersRequest.on('response', (headers, flags) => {
-    for (const name in headers) {
-        console.log(`${name}: ${headers[name]}`);
+async function testDataPath(path, client) {
+    return new Promise((resolve, reject) => {
+        let data = '';
+        const request = client.request({ ':path': path });
+        request.on('response', (headers) => {
+            for (const name in headers) {
+                console.log(`${name}: ${headers[name]}`);
+            }
+        });
+        request.setEncoding('utf8');
+        request.on('data', (chunk) => { data += chunk; });
+        request.on('error', reject);
+        request.on('end', () => resolve(data));
+        request.end();
+    });
+}
+async function main() {
+    const client = http2.connect('https://localhost:8443', {
+        ca: fs.readFileSync('C:/Users/jason/Code/github/shdb/examples/localhost-cert.pem')
+    })
+    try {
+        const data = await testDataPath('/shdb/json/users', client);
+        console.log('\n' + data);
+    } catch (error) {
+        console.error('Error: ', error);
+    } finally {
+        client.close();
     }
-});
-usersRequest.setEncoding('utf8');
-let data = '';
-usersRequest.on('data', (chunk) => { data += chunk; });
-usersRequest.on('end', () => {
-    console.log(`\n${data}`);
-    client.close();
-});
+}
+main();
