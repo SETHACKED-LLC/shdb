@@ -31,53 +31,7 @@ class SHDB {
                 res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
             } else {
                 if (requestURL.pathname.indexOf('/shdb/json/') === 0) {
-                    let collection = requestURL.pathname.split('/')[3] || null;
-                    let id = requestURL.pathname.split('/')[4] || null;
-                    // if requestURL.searchParams is empty, params is null
-                    // if requestURL.searchParams is not empty, params is requestURL.searchParams
-                    let params = requestURL.searchParams.toString() === '' ? null : requestURL.searchParams;
-                    // CRUD API for the JSON database
-                    switch (req.method) {
-                        case 'GET':
-                            {
-                                // if collection is null, return all collections
-                                // if id is null, return all records in collection
-                                // if params is null, return all records in collection
-                                // if params is not null, return filtered records in collection
-                                if (collection === null) {
-                                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                                    res.end(JSON.stringify(this.jsonDatabase));
-                                } else {
-                                    if (id === null) {
-                                        if (params === null) {
-                                            res.writeHead(200, { 'Content-Type': 'application/json' });
-                                            res.end(JSON.stringify(this.jsonDatabase[collection]));
-                                        } else {
-                                            res.writeHead(200, { 'Content-Type': 'application/json' });
-                                            res.end(JSON.stringify(this.filterCollection(collection, params)));
-                                        }
-                                    } else {
-                                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                                        res.end(JSON.stringify(this.jsonDatabase[collection][id]));
-                                    }
-                                }
-                            }
-                            break;
-                        case 'POST':
-                            { }
-                            break;
-                        case 'PUT':
-                            { }
-                            break;
-                        case 'DELETE':
-                            { }
-                            break;
-                        default:
-                            {
-                                res.writeHead(405);
-                                res.end();
-                            }
-                    }
+                    // JSON CRUD API
                 } else {
                     this.customAPI(req, res);
                 }
