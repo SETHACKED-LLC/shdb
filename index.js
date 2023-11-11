@@ -1,13 +1,10 @@
 'use strict';
-
 const http2 = require("http2");
 const fs = require("fs");
 const fsp = fs.promises;
 const mime = require("mime-types");
-
 class SHDB {
     constructor(options) {
-
         this.options = options;
         this.options.publicFilesPath = this.options.publicFilesPath || './public/';
         this.options.jsonDBPath = this.options.jsonDBPath || './db.json';
@@ -17,17 +14,26 @@ class SHDB {
         this.options.port = this.options.port || 8443;
         this.files = {};
         this.jsonDatabase = require(this.options.jsonDBPath);
-
         this.server = http2.createSecureServer({
             key: fs.readFileSync(this.options.key),
             cert: fs.readFileSync(this.options.cert),
         }, (req, res) => {
             if (req.url === '/') {
                 req.url = '/index.html';
+                // add cache control header
+                // do not cache index.html
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            } else {
+                // add cache control header
+                // cache all other files for 1 year
+                res.setHeader('Cache-Control', 'public, max-age=31536000');
             }
             let requestURL = new URL(req.url, `https://${this.options.host}:${this.options.port}`);
-            if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) { // if the file exists in public files, send it over
-                res.writeHead(200, { 'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime });
+            if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) {
+                res.writeHead(200, {
+                    'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime,
+                    'X-Content-Type-Options': 'nosniff'
+                });
                 res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
             } else {
                 if (requestURL.pathname.indexOf('/shdb/json/') === 0) {
@@ -38,20 +44,17 @@ class SHDB {
             }
         });
     }
-
     start() {
         this.server.listen(this.options.port, this.options.host, () => {
             console.log(`Server running at https://${this.options.host}:${this.options.port}/`);
         });
         this.readPublicFiles();
     }
-
     customAPI(req, res) {
         // default to 404 for now
         res.writeHead(404);
         res.end();
     }
-
     async walkDirectory(directoryPath) {
         let paths = await fsp.readdir(directoryPath);
         for (let i = 0; i < paths.length; i++) {
@@ -84,12 +87,10 @@ class SHDB {
             }
         }
     }
-
     async readPublicFiles() {
         await this.walkDirectory(this.options.publicFilesPath + '/');
         return;
     }
-
 }
 
 module.exports = SHDB;
