@@ -20,19 +20,13 @@ class SHDB {
         }, (req, res) => {
             if (req.url === '/') {
                 req.url = '/index.html';
-                // add cache control header
-                // do not cache index.html
-                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            } else {
-                // add cache control header
-                // cache all other files for 1 year
-                res.setHeader('Cache-Control', 'public, max-age=31536000');
             }
             let requestURL = new URL(req.url, `https://${this.options.host}:${this.options.port}`);
             if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) {
                 res.writeHead(200, {
                     'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime,
-                    'X-Content-Type-Options': 'nosniff'
+                    'X-Content-Type-Options': 'nosniff',
+                    'Cache-Control': 'public, max-age=31536000, immutable'
                 });
                 res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
             } else {
