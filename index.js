@@ -17,6 +17,7 @@ class SHDB {
         this.server = http2.createSecureServer({
             key: fs.readFileSync(this.options.key),
             cert: fs.readFileSync(this.options.cert),
+            allowHTTP1: true
         }, (req, res) => {
             if (req.url === '/') {
                 req.url = '/index.html';
