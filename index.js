@@ -12,6 +12,10 @@ class SHDB {
         this.options.cert = this.options.cert || './localhost-cert.pem';
         this.options.host = this.options.host || 'localhost';
         this.options.port = this.options.port || 8443;
+        this.options.customAPI = this.options.customAPI || function(req, res) {
+            res.writeHead(404);
+            res.end();
+        }; 
         this.files = {};
         this.jsonDatabase = require(this.options.jsonDBPath);
         this.server = http2.createSecureServer({
@@ -23,6 +27,7 @@ class SHDB {
                 req.url = '/index.html';
             }
             let requestURL = new URL(req.url, `https://${this.options.host}:${this.options.port}`);
+            // static files
             if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) {
                 res.writeHead(200, {
                     'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime,
@@ -31,10 +36,11 @@ class SHDB {
                 });
                 res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
             } else {
+            // defined APIs
                 if (requestURL.pathname.indexOf('/shdb/json/') === 0) {
                     // JSON CRUD API
                 } else {
-                    this.customAPI(req, res);
+                    this.options.customAPI(req, res);
                 }
             }
         });
@@ -44,11 +50,6 @@ class SHDB {
             console.log(`Server running at https://${this.options.host}:${this.options.port}/`);
         });
         this.readPublicFiles();
-    }
-    customAPI(req, res) {
-        // default to 404 for now
-        res.writeHead(404);
-        res.end();
     }
     async walkDirectory(directoryPath) {
         let paths = await fsp.readdir(directoryPath);
