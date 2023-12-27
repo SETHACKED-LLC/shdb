@@ -39,6 +39,8 @@ class SHDB {
             // defined APIs
                 if (requestURL.pathname.indexOf('/shdb/json/') === 0) {
                     // JSON CRUD API
+                    // 404 for now
+                    res.writeHead(404);
                 } else {
                     this.options.customAPI(req, res);
                 }
