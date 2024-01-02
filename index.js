@@ -13,6 +13,7 @@ class SHDB {
         this.options.host = this.options.host || 'localhost';
         this.options.port = this.options.port || 8443;
         this.options.customAPI = this.options.customAPI || function(req, res) {
+            console.log(`custom api - 404: ${req.url}`)
             res.writeHead(404);
             res.end();
         }; 
