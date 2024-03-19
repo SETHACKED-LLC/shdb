@@ -81,6 +81,11 @@ class SHDB {
 
                     // If no id is provided, and there is no query, return the whole table
                     if (!id && requestURL.search === '') {
+                        if (tableName.startsWith('_')) {
+                            res.writeHead(404);
+                            res.end();
+                            return;
+                        }
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify(removePrivateKeys(table)));
                         return;
@@ -99,7 +104,7 @@ class SHDB {
                         res.end(JSON.stringify(removePrivateKeys(record)));
                     } else {
                         // Apply filters, sorting, and pagination
-                        let records = table;
+                        let records = [...table];
 
                         // Filtering
                         if (requestURL.searchParams && requestURL.searchParams.toString()) {

@@ -11,7 +11,7 @@
                 },
                 3
             ],
-            "username": "anticlergy",
+            "username": "sethacked",
             "joined": "2023-09-12T02:26:25.989Z",
             "admin": true,
             "status": {
@@ -30,7 +30,7 @@
         },
         {
             "id": 2,
-            "username": "secondUser",
+            "username": "anticlergy",
             "joined": "2023-09-13T02:26:25.989Z",
             "admin": false,
             "status": {
@@ -48,7 +48,7 @@
             }
         }
     ],
-    "chatRooms": [
+    "_chatRooms": [
         {
             "id": 1,
             "name": "General",
