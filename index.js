@@ -19,12 +19,13 @@ class SHDB {
         this.options.customAPI =
             this.options.customAPI ||
             function (req, res) {
-                console.log(`custom api - 404: ${req.url}`);
+                console.log(`Custom API: ${req.method} ${req.url} - 404`);
                 res.writeHead(404);
                 res.end();
             };
         this.files = {};
         this.jsonDatabase = require(this.options.jsonDBPath);
+
         this.server = http2.createSecureServer(
             {
                 key: fs.readFileSync(this.options.key),
@@ -37,7 +38,7 @@ class SHDB {
                 }
                 let requestURL = new URL(`https://${this.options.host}:${this.options.port}${req.url}`);
                 if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) {
-                    console.log(`serving file: ${this.options.publicFilesPath}${requestURL.pathname}`);
+                    console.log(`Static File: ${req.method} ${req.url}`);
                     res.writeHead(200, {
                         'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime,
                         'X-Content-Type-Options': 'nosniff',
@@ -45,22 +46,7 @@ class SHDB {
                     });
                     res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
                 } else if (requestURL.pathname.indexOf('/shdb/json/') === 0 && req.method === 'GET') {
-
-                    function removePrivateKeys(obj) {
-                        let newObj = Array.isArray(obj) ? [] : {};
-                        for (let key in obj) {
-                            if (!key.startsWith('_')) {
-                                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                                    newObj[key] = removePrivateKeys(obj[key]);
-                                } else {
-                                    newObj[key] = obj[key];
-                                }
-                            }
-                        }
-                        return newObj;
-                    }
-
-                    console.log(`/shdb/json/ GET: ${req.url}`);
+                    console.log(`JSON API: ${req.method} - ${req.url}`);
                     let pathParts = requestURL.pathname.split('/').filter(part => part);
                     let tableName = pathParts[2]; // The table name is the third part of the path
                     let id = pathParts[3]; // The id is the fourth part of the path
@@ -68,11 +54,18 @@ class SHDB {
                     // If no table name is provided, return the whole JSON database
                     if (!tableName) {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify(removePrivateKeys(this.jsonDatabase)));
+                        res.end(JSON.stringify(this.removePrivateKeys(this.jsonDatabase)));
+                        return;
+                    }
+
+                    if (tableName.startsWith('_')) {
+                        res.writeHead(404);
+                        res.end();
                         return;
                     }
 
                     let table = this.jsonDatabase[tableName];
+
                     if (!table) {
                         res.writeHead(404);
                         res.end();
@@ -81,13 +74,8 @@ class SHDB {
 
                     // If no id is provided, and there is no query, return the whole table
                     if (!id && requestURL.search === '') {
-                        if (tableName.startsWith('_')) {
-                            res.writeHead(404);
-                            res.end();
-                            return;
-                        }
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify(removePrivateKeys(table)));
+                        res.end(JSON.stringify(this.removePrivateKeys(table)));
                         return;
                     }
 
@@ -101,7 +89,7 @@ class SHDB {
                         }
 
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify(removePrivateKeys(record)));
+                        res.end(JSON.stringify(this.removePrivateKeys(record)));
                     } else {
                         // Apply filters, sorting, and pagination
                         let records = [...table];
@@ -111,21 +99,11 @@ class SHDB {
                             for (let [key, value] of requestURL.searchParams.entries()) {
                                 if (key.startsWith('_')) continue; // Ignore special parameters
                                 records = records.filter(record => {
-                                    let recordValue = getNestedValue(record, key);
+                                    let recordValue = this.getNestedValue(record, key);
                                     // Convert both values to strings before comparing
                                     return String(recordValue) === String(value);
                                 });
                             }
-                        }
-
-                        // This function gets the value at the property path
-                        function getNestedValue(obj, key) {
-                            let keys = key.split('.');
-                            for (let i = 0; i < keys.length; i++) {
-                                if (obj[keys[i]] === undefined) return undefined;
-                                obj = obj[keys[i]];
-                            }
-                            return obj;
                         }
 
                         // Sorting
@@ -152,7 +130,7 @@ class SHDB {
                             records = records.slice((page - 1) * limit, page * limit);
                         }
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify(removePrivateKeys(records)));
+                        res.end(JSON.stringify(this.removePrivateKeys(records)));
                         return;
                     }
                 } else {
@@ -161,6 +139,29 @@ class SHDB {
                 }
             }
         );
+    }
+
+    removePrivateKeys = (obj) => {
+        let newObj = Array.isArray(obj) ? [] : {};
+        for (let key in obj) {
+            if (!key.startsWith('_')) {
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    newObj[key] = this.removePrivateKeys(obj[key]);
+                } else {
+                    newObj[key] = obj[key];
+                }
+            }
+        }
+        return newObj;
+    }
+
+    getNestedValue = (obj, key) => {
+        let keys = key.split('.');
+        for (let i = 0; i < keys.length; i++) {
+            if (obj[keys[i]] === undefined) return undefined;
+            obj = obj[keys[i]];
+        }
+        return obj;
     }
 
     start() {
@@ -267,6 +268,7 @@ class SHDB {
             throw err;
         }
     }
+
 }
 
 module.exports = SHDB;
