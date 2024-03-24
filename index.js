@@ -37,14 +37,15 @@ class SHDB {
                     req.url = '/index.html';
                 }
                 let requestURL = new URL(`https://${this.options.host}:${this.options.port}${req.url}`);
-                if (this.files[`${this.options.publicFilesPath}${requestURL.pathname}`] !== undefined) {
+                // console.log(`${this.options.publicFilesPath}${requestURL.pathname}`)
+                if (this.files[`${this.options.publicFilesPath}${decodeURIComponent(requestURL.pathname)}`] !== undefined) {
                     console.log(`Static File: ${req.method} ${req.url}`);
                     res.writeHead(200, {
-                        'Content-Type': this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].mime,
+                        'Content-Type': this.files[`${this.options.publicFilesPath}${decodeURIComponent(requestURL.pathname)}`].mime,
                         'X-Content-Type-Options': 'nosniff',
                         'Cache-Control': 'public, max-age=31536000, immutable',
                     });
-                    res.end(this.files[`${this.options.publicFilesPath}${requestURL.pathname}`].data);
+                    res.end(this.files[`${this.options.publicFilesPath}${decodeURIComponent(requestURL.pathname)}`].data);
                 } else if (requestURL.pathname.indexOf('/shdb/json/') === 0 && req.method === 'GET') {
                     console.log(`JSON API: ${req.method} - ${req.url}`);
                     let pathParts = requestURL.pathname.split('/').filter(part => part);
